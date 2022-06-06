@@ -16,62 +16,9 @@ from flask_wtf import Form
 from forms import *
 from flask_migrate import Migrate
 import sys
-#----------------------------------------------------------------------------#
-# App Config.
-#----------------------------------------------------------------------------#
-
-app = Flask(__name__)
-moment = Moment(app)
-app.config.from_object('config')
-db = SQLAlchemy(app)
-
-migrate = Migrate(app, db)
-
-#----------------------------------------------------------------------------#
-# Models.
-#----------------------------------------------------------------------------#
-
-class Venue(db.Model):
-    __tablename__ = 'venue'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    website_link = db.Column(db.String(120))
-    genres = db.Column(db.ARRAY(db.String))
-    seeking_talent = db.Column(db.Boolean)
-    seeking_description = db.Column(db.String)
-    shows = db.relationship('Show', backref='venue', lazy=True)
-
-class Artist(db.Model):
-    __tablename__ = 'artist'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    website_link = db.Column(db.String(120))
-    seeking_venue = db.Column(db.Boolean)
-    seeking_description = db.Column(db.String)
-    shows = db.relationship('Show', backref='artist', lazy=True)
+from model import Venue, Show, Artist, app, db
 
 
-class Show(db.Model):
-    __tablename__ = 'show'
-
-    id = db.Column(db.Integer, primary_key=True)
-    start_time = db.Column(db.DateTime())
-    venue_id = db.Column(db.Integer, db.ForeignKey('venue.id'), nullable=False)
-    artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=False)
 
 # db.create_all()
 #----------------------------------------------------------------------------#
@@ -87,6 +34,9 @@ def format_datetime(value, format='medium'):
   return babel.dates.format_datetime(date, format, locale='en')
 
 app.jinja_env.filters['datetime'] = format_datetime
+
+today = datetime.now()
+now = today.strftime("%Y-%m-%d %H:%M:%S")
 
 #----------------------------------------------------------------------------#
 # Controllers.
@@ -127,9 +77,33 @@ def search_venues():
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
   # shows the venue page with the given venue_id
-  
-  data = Venue.query.filter_by(id=venue_id).first()
-  return render_template('pages/show_venue.html', venue=data)
+  venue = {}
+  up_shows = []
+  past_show = []
+  try:
+    venue = Venue.query.get(venue_id)
+    for show in venue.shows:
+      sh = Show.query.get(show.id)
+      show.artist_name = sh.artist.name
+      show.artist_image_link = sh.artist.image_link
+      if show.time > today:
+        show.time = str(show.time)
+        up_shows.append(show)
+      else:
+        show.time = str(show.time)
+        past_show.append(show)
+    setattr(venue, 'past_shows', past_show)
+    setattr(venue, 'upcoming_shows', up_shows)
+    setattr(venue, 'past_shows_count', len(past_show))
+    setattr(venue, 'upcoming_shows_count', len(up_shows))
+  except:
+    print(sys.exc_info())
+  return render_template('pages/show_venue.html', venue=venue)
+
+
+  # data = Venue.query.filter_by(id=venue_id).first()
+
+
 
 
 #  Create Venue
@@ -212,9 +186,29 @@ def search_artists():
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
   # shows the artist page with the given artist_id
- 
-  data = Artist.query.filter_by(id=artist_id).first()
-  return render_template('pages/show_artist.html', artist=data)
+  artist = {}
+  up_shows = []
+  past_show = []
+  try:
+    artist = Artist.query.get(artist_id)
+    for show in artist.shows:
+      sh = Show.query.get(show.id)
+      show.venue_name = sh.venue.name
+      show.venue_image_link = sh.venue.image_link
+      if show.time > today :
+        show.time = str(show.time)
+        up_shows.append(show)
+      else:
+        show.time = str(show.time)
+        past_show.append(show)
+    setattr(artist, 'past_shows', past_show)
+    setattr(artist, 'upcoming_shows', up_shows)
+    setattr(artist, 'past_shows_count', len(past_show))
+    setattr(artist, 'upcoming_shows_count', len(up_shows))
+  except:
+    print(sys.exc_info())
+  return render_template('pages/show_artist.html', artist=artist)
+  # data = Artist.query.filter_by(id=artist_id).first()
 
 #  Update
 #  ----------------------------------------------------------------
